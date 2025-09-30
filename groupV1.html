@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="theme-color" content="#4a69bd">
+<title>Group Structure & Membership - Mini App</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#4a69bd; --brand-alt:#3c6382;
+    --bg:#f5f6fa; --panel:#ffffff;
+    --text:#333; --muted:#7a7a7a;
+    --line:#e9edf3; --row:#f8f9fa; --row-hover:#e9f0fb;
+    --table-head:#4a69bd; --accent:#60a3bc; --header-text:#ffffff;
+    --sticky-top:56px;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1420; --panel:#151a28;
+    --text:#e9ecf1; --muted:#a5afc7;
+    --line:#232b3d; --row:#111828; --row-hover:#1a2235;
+    --table-head:#2b3b6b; --accent:#3b8ca4; --header-text:#e9ecf1;
+  }
+  *{box-sizing:border-box}
+  html,body{background:var(--bg);color:var(--text)}
+  body{font-family:"Inter","Sarabun","Segoe UI",Tahoma,sans-serif;margin:0}
+
+  header{position:sticky;top:0;z-index:1000;background:var(--brand);color:var(--header-text);padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  h1{font-size:18px;margin:0 8px 0 0;font-weight:600}
+
+  /* ---- Search (no match controls) ---- */
+  .search-container{
+    position: relative;
+    width: 360px; max-width: 100%;
+    display: flex; align-items: center; gap: 6px;
+    padding-right: 0;
+  }
+  #search{
+    flex:1; width:100%; height:44px; font-size:15.5px;
+    padding:10px 14px; padding-right:44px;     /* เผื่อปุ่มลบ */
+    border:1px solid #cfd6e4; border-radius:10px; outline:none;
+    background:#fff; color:#000;
+  }
+  #search::placeholder{color:#666}
+  .clear-btn{
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    display:none; width:26px; height:26px; border-radius:50%;
+    background:#2f4f9d; color:#fff; font-size:16px; line-height:26px; text-align:center;
+    border:1px solid #274488; box-shadow:0 2px 6px rgba(0,0,0,.18);
+    cursor:pointer; z-index:20;
+  }
+  .clear-btn:hover{ background:#264693; }
+  .clear-btn:active{ transform:translateY(-50%) scale(.95); }
+
+  .suggestions{
+    position:absolute; top:100%; left:0; right:0;
+    z-index:2000; display:none;
+    background:var(--panel); border:1px solid var(--line); border-top:none;
+    border-bottom-left-radius:10px; border-bottom-right-radius:10px;
+    max-height:240px; overflow:auto; border-radius:12px;
+    box-shadow:0 6px 14px rgba(0,0,0,.12);
+  }
+  .suggestion-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;cursor:pointer}
+  .sug-main{font-size:14.5px;color:#1f2937}
+  .sug-badge{font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#263a8b;border:1px solid #dbe1ff}
+  .suggestion-item:hover,[aria-selected="true"].suggestion-item{background:#f3f7ff}
+  :root[data-theme="dark"] .sug-main{color:#e9ecf1}
+  .hl{background:#ffde59;color:#000;padding:0 2px;border-radius:3px;font-weight:600}
+
+  .wrap{display:grid;grid-template-columns:280px 1fr;gap:16px;padding:16px}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;box-shadow:0 2px 5px rgba(0,0,0,.05)}
+  label{display:block;margin-bottom:6px;font-weight:600}
+  .bar{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+
+  input[type="text"],select{height:44px;padding:10px 14px;border:1px solid #cfd6e4;border-radius:10px;font-size:15.5px;background:#fff;color:#000}
+  input[type="file"]{height:44px;border:1px solid #cfd6e4;border-radius:10px;background:#fff;color:#000}
+
+  button{padding:10px 14px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
+  button:hover{background:var(--brand-alt)}
+  button:disabled{opacity:.6;cursor:not-allowed}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:10px;text-align:left}
+  
+  header {z-index: 1000;             /* header อยู่เหนือสุด */ }
+  tr:nth-child(even){background:var(--row)}
+  /* ให้ hover เฉพาะแถวข้อมูล ไม่โดนหัวตาราง */
+#tblMembers tbody tr:hover,
+#tblGroups  tbody tr:hover { background: var(--row-hover); }
+
+/* กัน hover ไปเปลี่ยนสี thead */
+#tblMembers thead tr:hover,
+tbody tr:hover { background: var(--row-hover); 
+  background: inherit !important;
+}
+
+  td{border-bottom:1px solid var(--line)}
+  .table-hint{margin-bottom:8px}
+
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab{background:#e1ebf7;color:#123;border:1px solid #c7dbf3}
+  .tab.active{background:var(--brand);color:#fff;border-color:transparent}
+
+  .cards{display:flex;flex-wrap:wrap;gap:8px}
+  .card{padding:8px 10px;background:var(--row);border-radius:6px;font-size:13px;color:var(--text)}
+
+  :root[data-theme="dark"] input[type="text"],
+  :root[data-theme="dark"] select,
+  :root[data-theme="dark"] input[type="file"],
+  :root[data-theme="dark"] #search{
+    background:#fff !important;color:#000 !important;border-color:#cfd6e4 !important;
+  }
+  :root[data-theme="dark"] #search::placeholder,
+  :root[data-theme="dark"] #searchName::placeholder{color:#666}
+
+  .view-title{display:none;font-weight:700;margin:6px 0 10px;padding:8px 12px;border-radius:10px;color:#fff}
+  #titleMembers{ background: var(--table-head); }
+  #titleGroups{ background:#e67e22; }
+  :root[data-theme="dark"] #titleGroups{ background:#cc6d1c; }
+  #tblGroups thead th{ background:#e67e22; }
+
+  .file-uploader{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cfd6e4;border-radius:12px;padding:6px 8px;height:52px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .file-uploader input[type="file"]{display:none}
+  .file-button{display:inline-flex;align-items:center;justify-content:center;min-width:50px;padding:12px 16px;font-size:15.5px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .file-name{max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;color:#123}
+  :root[data-theme="dark"] .file-uploader{background:#fff;border-color:#cfd6e4}
+  :root[data-theme="dark"] .file-name{color:#222}
+
+  #backToTop {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 52px; height: 52px; border: none; border-radius: 50%;
+    background: #4a69bd; color: #fff; font-size: 22px; cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,.2); display: none;
+    align-items: center; justify-content: center; transition: opacity .3s, transform .2s;
+  }
+  #backToTop:hover { background: #3c5aa9; transform: translateY(-2px); }
+
+  .pill{padding:2px 8px;border-radius:999px;font-size:12px}
+  .pill-yes{background:#ffe5e5;color:#b00020}
+  .pill-no {background:#e8f5e9;color:#1b5e20}
+  :root { --sticky-top: 60px; } /* เท่ากับ header จริง */
+  /* ใช้ border model แบบ separate เพื่อให้ sticky header เสถียร */
+table{
+  width:100%;
+  border-collapse: separate;   /* เดิมเป็น collapse → บางทีวาด background ล้นเป็น "แท่งน้ำเงิน" */
+  border-spacing: 0;
+  font-size:14px;
+}
+
+/* เส้นคั่นล่างของแถว */
+td{ border-bottom:1px solid var(--line); }
+/* ตารางกินกว้างเต็ม + เลื่อนแนวนอนเมื่อแคบ */
+#tblMembers, #tblGroups{ table-layout: fixed; min-width: 980px; }
+main.panel{ overflow-x: auto; }
+
+/* เฉพาะแถวข้อมูลเท่านั้นที่ hover ได้ */
+#tblMembers tbody tr:hover,
+#tblGroups  tbody tr:hover{ background: var(--row-hover); }
+
+/* กัน hover ไปโดนหัวตาราง */
+#tblMembers thead tr:hover,
+#tblGroups  thead tr:hover{ background: inherit !important; }
+
+/* sticky ที่ <thead> ทั้งแถบ */
+#tblMembers thead, #tblGroups thead{
+  position: sticky;
+  top: var(--sticky-top);
+  z-index: 60;                    /* ต้องน้อยกว่า header (1000) */
+}
+
+/* สีพื้นหลังหัวตารางทั้งแถบ */
+#tblMembers thead{ background: var(--table-head); }
+#tblGroups  thead{ background: #e67e22; }
+
+/* แต่ละหัวคอลัมน์: บรรทัดเดียว + ตัดคำด้วย … */
+#tblMembers thead th, #tblGroups thead th{
+  background: transparent !important;
+  color:#fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.12);
+  /* ย้ำว่าไม่ตัดคำในหัวคอลัมน์ */
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* ข้อความยาวใน "ข้อมูล" เท่านั้นที่ตัดคำได้ */
+#tblMembers tbody td, #tblGroups tbody td{
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ความกว้างคอลัมน์ (ปรับเลขได้ตามจริง) */
+#tblMembers thead th:nth-child(1),
+#tblMembers tbody td:nth-child(1){ min-width:180px; } /* GroupDisplayName */
+#tblMembers thead th:nth-child(2),
+#tblMembers tbody td:nth-child(2){ min-width:180px; } /* GroupMail */
+#tblMembers thead th:nth-child(3),
+#tblMembers tbody td:nth-child(3){ min-width:170px; } /* UserDisplayName */
+#tblMembers thead th:nth-child(4),
+#tblMembers tbody td:nth-child(4){ min-width:220px; white-space:nowrap; } /* UPN */
+#tblMembers thead th:nth-child(5),
+#tblMembers tbody td:nth-child(5){ min-width:140px; } /* Title */
+#tblMembers thead th:nth-child(6),
+#tblMembers tbody td:nth-child(6){ min-width:160px; } /* Department */
+#tblMembers thead th:nth-child(7),
+#tblMembers tbody td:nth-child(7){ width:110px; text-align:center; } /* Active users */
+#tblMembers thead th:nth-child(8),
+#tblMembers tbody td:nth-child(8){ width:140px; text-align:center; } /* Block credential */
+
+#tblGroups thead th:nth-child(1),
+#tblGroups tbody td:nth-child(1){ min-width:220px; }
+#tblGroups thead th:nth-child(2),
+#tblGroups tbody td:nth-child(2){ min-width:220px; white-space:nowrap; }
+#tblGroups thead th:nth-child(3),
+#tblGroups tbody td:nth-child(3){ width:120px; text-align:center; }
+#tblGroups thead th:nth-child(4),
+#tblGroups tbody td:nth-child(4){ width:120px; text-align:center; }
+
+
+
+
+/* ย้ำให้ header อยู่บนสุดจริง ๆ */
+header{ z-index: 1000; }
+
+/* กัน margin-collapsing ใต้ header และปรับช่องไฟนิดหน่อย */
+header{ margin-bottom: 0; }
+.wrap{ padding-top: 12px; }  /* ตัวนี้ถูกเอาไปคำนวณรวมให้แล้วใน JS */
+/* ตารางให้กินกว้างเต็ม + คอลัมน์นิ่ง */
+table{
+  width:100%;
+  border-collapse: separate;  /* ต้องเป็น separate เพื่อให้ sticky เสถียร */
+  border-spacing:0;
+  table-layout: fixed;        /* บังคับให้กินพื้นที่เต็ม ไม่เหลือช่องขวา */
+}
+
+/* ข้อความในเซลล์ยาวไม่ดันตารางล้น */
+th, td{
+  padding:10px;
+  text-align:left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ทำ thead ให้ sticky เป็นแถบเดียว */
+#tblMembers thead,
+#tblGroups thead{
+  position: sticky;
+  top: var(--sticky-top);
+  z-index: 60;                 /* ต้องต่ำกว่า header (1000) */
+}
+
+/* สีพื้นหลังแถบหัวตาราง (ทั้งแถบ) */
+#tblMembers thead{ background: var(--table-head); }
+#tblGroups  thead{ background: #e67e22; }
+
+/* ให้ <th> โปร่งใส พื้นหลังมาจาก thead */
+#tblMembers thead th,
+#tblGroups thead th{
+  background: transparent !important;
+  color:#fff;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.12);
+}
+
+/* ลบทิ้ง/ยกเลิกกฎเดิมที่ทำ sticky รายคอลัมน์ */
+th{
+  position: static !important;
+  background: transparent !important;
+}
+th, td{ word-break: break-word; overflow-wrap: anywhere; }
+/* กันข้อความยาวล้นคอลัมน์ → ใช้ … */
+#tblMembers tbody td:nth-child(2), /* GroupMail */
+#tblMembers tbody td:nth-child(4)  /* UserPrincipalName */
+{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ถ้ามีมุมมอง Groups ให้กับอีเมลกลุ่มด้วย */
+#tblGroups tbody td:nth-child(2){
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ซ่อน native file input + จัดแนวให้สวย */
+#db-uploader input[type="file"]{ display:none; }
+#db-uploader{ display:flex; align-items:center; gap:10px; }
+
+/* ให้ความสูง/มุม/เงาเท่ากับฝั่งซ้าย (ถ้ายังไม่เท่ากัน) */
+#db-uploader .file-button{ height: 40px; padding: 10px 16px; border-radius: 7px; }
+#db-uploader .file-name{ line-height: 1.2; }
+
+/* กันฟอร์มไปดัน layout */
+#dbUploadForm{ margin:0; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+  <a id="brandLink" href="groupV1.html" style="color:inherit;text-decoration:none;">
+    Employee & Group Management System
+  </a>
+</h1>
+  <div class="search-container" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+    <input id="search" type="text" placeholder="ค้นหา (ชื่อ/แผนก/กลุ่ม)…"
+       autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+       aria-autocomplete="list">
+    <span id="clearSearch" class="clear-btn" title="ล้าง">&#10005;</span>
+    <div id="suggestions" class="suggestions" role="listbox"></div>
+  </div>
+
+  <div class="file-uploader">
+    <label class="file-button" for="file">เลือกไฟล์</label>
+    <span class="file-name" id="fileName">รองรับ CSV / XLSX</span>
+    <input type="file" id="file" accept=".csv,.xlsx,.xls">
+  </div>
+
+  <button id="btnSample">ดาวน์โหลดเทมเพลต CSV</button>
+  <button id="themeToggle" title="Toggle theme">themes</button>
+  
+
+  <form id="dbUploadForm" method="post" enctype="multipart/form-data" action="upload_to_db.php">
+  <div class="file-uploader" id="db-uploader">
+    <label class="file-button" for="dbFile">เลือกไฟล์</label>
+    <span class="file-name" id="dbFileName">เลือก CSV เพื่อนำเข้า DB</span>
+    <!-- ซ่อน input จริง -->
+    <input type="file" id="dbFile" name="file" accept=".csv" />
+    <button type="submit" class="file-button" id="btnUploadDb" style="min-width:auto">
+      อัปโหลด CSV ↦ DB
+    </button>
+  </div>
+</form>
+
+
+
+</header>
+
+<button id="backToTop" title="กลับขึ้นด้านบน">▲</button>
+
+<div class="wrap">
+  <aside class="panel">
+    <div class="bar">
+      <label>แถบค้นหา</label>
+      <div class="tabs">
+        <button id="tabMembers" class="tab active">Members</button>
+        <button id="tabGroups"  class="tab">Groups</button>
+      </div>
+    </div>
+
+    <div class="bar" id="memberFilters">
+      <label>ค้นหาชื่อพนักงาน</label>
+      <input id="searchName" type="text" placeholder="พิมพ์ชื่อบางส่วน…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label>แผนก (Department)</label>
+      <select id="filterDept"><option value="">ทั้งหมด</option></select>
+      <label>กลุ่ม (Group)</label>
+      <select id="filterGroup"><option value="">ทั้งหมด</option></select>
+      <label>สถานะ (Status)</label>
+      <select id="filterStatus"><option value="">ทั้งหมด</option><option>Allowed</option><option>Blocked</option></select>
+    </div>
+
+    <div class="bar" id="groupFilters" style="display:none">
+      <label>ค้นหากลุ่ม</label>
+      <input id="searchGroupText" type="text" placeholder="พิมพ์ชื่อกลุ่ม...">
+      <label>สถานะกลุ่ม</label>
+      <select id="filterGroupStatus"><option value="">ทั้งหมด</option><option>Active</option><option>Inactive</option></select>
+    </div>
+
+    <div class="bar">
+      <button id="btnClear">ล้างตัวกรอง</button>
+      <button id="btnExport" disabled>ส่งออกผลลัพธ์ (CSV)</button>
+      <button id="btnExportGroups" disabled style="display:none">ส่งออก Groups (CSV)</button>
+    </div>
+
+    <div class="cards">
+      <span class="card" id="statTotal">ทั้งหมด: 0</span>
+      <span class="card" id="statActive">Active: 0</span>
+      <span class="card" id="statInactive">Inactive: 0</span>
+      <span class="card" id="statGroups">จำนวนกลุ่ม: 0</span>
+    </div>
+  </aside>
+
+  <main class="panel">
+    <div class="muted table-hint">ตารางจะแสดงหลังอัปโหลดไฟล์ CSV/Excel</div>
+    <div id="titleMembers" class="view-title" style="display:none">Members</div>
+    <div id="titleGroups"  class="view-title" style="display:none">Groups</div>
+
+    <!-- Members view -->
+    <table id="tblMembers" style="display:none">
+      <thead>
+        <tr>
+          <th>GroupDisplayName</th>
+          <th>GroupMail</th>
+          <th>UserDisplayName</th>
+          <th>UserPrincipalName</th>
+          <th>Title</th>
+          <th>Department</th>
+          <th>Active users</th>
+          <th>Block credential</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- Groups view -->
+    <table id="tblGroups" style="display:none">
+      <thead><tr>
+        <th>Group name</th>
+        <th>Group primary email</th>
+        <th>Active users</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  
+/* ===== Utils ===== */
+function parseCSV(text){
+  text = String(text || '').replace(/^\uFEFF/, '');
+  const rows=[];let i=0,field='',row=[],inQ=false;
+  while(i<text.length){const c=text[i];
+    if(inQ){ if(c=='"'){ if(text[i+1]=='"'){field+='"';i++;} else inQ=false; } else field+=c; }
+    else{ if(c=='"') inQ=true; else if(c==','){row.push(field);field='';}
+      else if(c=='\n'){row.push(field);rows.push(row);field='';row=[];}
+      else if(c=='\r'){} else field+=c; }
+    i++; }
+  if(field.length||row.length){row.push(field);rows.push(row);} return rows;
+}
+function toCSV(rows){
+  return rows.map(r=>r.map(v=>{
+    const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  }).join(',')).join('\n');
+}
+const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+const clean=v=>/^(#N\/A|N\/A|NA)$/i.test(String(v??'').trim())?'':String(v??'').trim();
+const uniq=arr=>[...new Set(arr.filter(x=>String(x).trim()!==''))];
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+
+/* ===== State & Elements ===== */
+let headers=[], raw=[], filtered=[], groupRows=[], suggestionsPool=[];
+const headerMap={};
+const els = {
+  file: document.getElementById('file'),
+  fileName: document.getElementById('fileName'),
+  sample: document.getElementById('btnSample'),
+  exportBtn: document.getElementById('btnExport'),
+  exportGroups: document.getElementById('btnExportGroups'),
+  clear: document.getElementById('btnClear'),
+  searchName: document.getElementById('searchName'),
+  dept: document.getElementById('filterDept'),
+  group: document.getElementById('filterGroup'),
+  status: document.getElementById('filterStatus'),
+  tblMembers: document.getElementById('tblMembers'),
+  tbMembersBody: document.querySelector('#tblMembers tbody'),
+  tblGroups: document.getElementById('tblGroups'),
+  tbGroupsBody: document.querySelector('#tblGroups tbody'),
+  statTotal: document.getElementById('statTotal'),
+  statActive: document.getElementById('statActive'),
+  statInactive: document.getElementById('statInactive'),
+  statGroups: document.getElementById('statGroups'),
+  gSearch: document.getElementById('search'),
+  gSuggest: document.getElementById('suggestions'),
+  clearSearch: document.getElementById('clearSearch'),
+  groupFilters: document.getElementById('groupFilters'),
+  searchGroupText: document.getElementById('searchGroupText'),
+  filterGroupStatus: document.getElementById('filterGroupStatus'),
+  tabMembers: document.getElementById('tabMembers'),
+  tabGroups: document.getElementById('tabGroups'),
+  themeBtn: document.getElementById('themeToggle'),
+  root: document.documentElement,
+  membersTitle: document.getElementById('titleMembers'),
+  groupsTitle : document.getElementById('titleGroups'),
+  backToTop: document.getElementById('backToTop')
+};
+
+/* ===== Theme toggle ===== */
+(function(){
+  const KEY='theme';
+  const stored = localStorage.getItem(KEY);
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  setTheme(stored || (prefersDark?'dark':'light'));
+  els.themeBtn.addEventListener('click', ()=> setTheme(els.root.dataset.theme==='dark'?'light':'dark'));
+  function setTheme(mode){ els.root.dataset.theme=mode; localStorage.setItem(KEY,mode); }
+})();
+
+/* ===== Helpers ===== */
+function pick(row,...names){ for(const n of names){ const i=headerMap[norm(n)]; if(i!==undefined) return clean(row[i]); } return ''; }
+
+function isActiveRow(row){
+  const s = norm(row.StatusRaw);
+  if(s){
+    if(['active','enabled','enable','ใช้งาน'].includes(s)) return true;
+    if(['inactive','disabled','disable','เลิกใช้งาน','no user','groups with former employees','pending inquiry'].includes(s)) return false;
+  }
+  const au = String(row.ActiveUsersRaw ?? '').trim();
+  if(/^\d+$/.test(au)) return Number(au) > 0;
+  const v = norm(au);
+  if(['active','1','true','yes','y','ใช่'].includes(v)) return true;
+  if(['inactive','0','false','no','n','ไม่ใช่'].includes(v)) return false;
+  return false;
+}
+function highlightText(text, q){
+  const safe = escapeHtml(String(text ?? '—'));
+  const kw = String(q || '').trim();
+  if(!kw) return safe;
+  const re = new RegExp('(' + kw.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&') + ')', 'ig');
+  return safe.replace(re, '<span class="hl">$1</span>');
+}
+function renderBlock(v, q){
+  const t = String(v||'').trim().toLowerCase();
+  const txt = v ? String(v) : '—';
+  const inner = highlightText(txt, q);
+  if(['true','yes','1','blocked','block','blocked sign-in','sign-in blocked'].includes(t)) return `<span class="pill pill-yes">${inner}</span>`;
+  if(['false','no','0','unblocked'].includes(t)) return `<span class="pill pill-no">${inner}</span>`;
+  return inner;
+}
+function numFromActiveUsers(v){
+  const s = String(v ?? '').replace(/,/g,'').trim();
+  const m = s.match(/\d+/);
+  return m ? Number(m[0]) : null;
+}
+
+/* ===== File load ===== */
+els.file.addEventListener('change', onFile);
+function onFile(e){
+  const f=e.target.files?.[0]; if(!f) return;
+  els.fileName.textContent = f.name || 'รองรับ CSV / XLSX';
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(ext==='csv'){
+    const r=new FileReader();
+    r.onload=()=>{ try{
+      const txt = String(r.result || '').replace(/^\uFEFF/, '');
+      const rows=parseCSV(txt); if(!rows.length) return alert('ไม่พบข้อมูลในไฟล์ CSV'); 
+      processRows(rows);
+    }catch(err){alert('อ่านไฟล์ CSV ไม่สำเร็จ: '+err.message);} };
+    r.readAsText(f,'utf-8');
+  }else if(ext==='xlsx'||ext==='xls'){
+    const r=new FileReader();
+    r.onload=(evt)=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array'});
+        let sheetName=wb.SheetNames.find(sn=>{
+          const probe=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+          return probe.some(r=>r.some(c=>String(c).trim()!=='')); })||wb.SheetNames[0];
+
+        let rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:''})
+          .filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!==''));        
+        if(!rows.length) return alert('ไม่พบข้อมูลในไฟล์ Excel');
+
+        const KNOWN=['GroupDisplayName','Group Name','GroupMail','Group Email','GroupAddress','UserDisplayName','Name','UserPrincipalName','UPN','Email','Title','Job Title','JobTitle','Position','Role','TitleName','Department','Dept','DepartmentName','Department Name','GroupDefaultDepartment','Group Default Department','Active users','Active Users','Active User','IsActive','Active','Status','สถานะ','Block credential','Block credentials','Sign-in blocked','Sign in blocked'].map(s=>s.toLowerCase());
+        let headerIdx=0, bestScore=-1;
+        for(let i=0;i<rows.length;i++){
+          const score=rows[i].reduce((a,c)=>a+(KNOWN.includes(String(c??'').toLowerCase().trim())?1:0),0);
+          if(score>bestScore){ bestScore=score; headerIdx=i; }
+          if(score>=3){ headerIdx=i; break; }
+        }
+        if(headerIdx>0) rows=rows.slice(headerIdx);
+        processRows(rows);
+      }catch(err){ alert('อ่านไฟล์ Excel ไม่สำเร็จ: '+err.message); }
+    };
+    r.readAsArrayBuffer(f);
+  }else{
+    alert('ไฟล์ต้องเป็น CSV หรือ Excel (.xlsx, .xls)');
+  }
+}
+
+/* ===== Parse -> state ===== */
+function processRows(rows){
+  rows = rows.filter(r=>{
+    const joined = (r||[]).map(c=>String(c||'').trim().toLowerCase()).join('');
+    if(!joined) return false;
+    if(joined==='members' || joined==='groups') return false;
+    return true;
+  });
+  if(!rows.length){ alert('ไม่พบข้อมูลหลังกรอง'); return; }
+
+  rows[0][0] = String(rows[0][0]||'').replace(/^\uFEFF/, '');
+  headers = rows[0].map(h=>String(h).trim());
+  Object.keys(headerMap).forEach(k=>delete headerMap[k]);
+  headers.forEach((h,i)=> headerMap[norm(h)] = i);
+
+  const GNAME  = ['GroupDisplayName','Group Name','Group','ชื่อกลุ่ม'];
+  const GMAIL  = ['GroupMail','Group Email','GroupEmail','GroupAddress','Mail','Email','Primary SMTP Address','Group primary email','Primary Email','Group Primary Email'];
+  const UNAME  = ['UserDisplayName','Display Name','DisplayName','User Name','Member name','Member','ชื่อผู้ใช้','ชื่อสมาชิก','Name'];
+  const UPN    = ['UserPrincipalName','User principal name','UPN','User email','User Email','Signin name','SignInName','Login','Primary SMTP Address','Email'];
+  const TITLE  = ['Title','Job Title','JobTitle','Position','Role','TitleName','ตำแหน่ง'];
+  const DEPT   = ['Department','Dept','DepartmentName','Department Name','แผนก','หน่วยงาน','GroupDefaultDepartment','Group Default Department'];
+  const ACTIVEUSERS = ['Active users','Active Users','Active User'];
+  const STATUSCOL   = ['Status','สถานะ','Group status','Group Status'];
+  const BLOCKCRED   = ['Block credential','Block credentials','Sign-in blocked','Sign in blocked','Block sign-in'];
+
+  raw = rows.slice(1)
+    .filter(r => r.length && r.some(x=>String(x).trim()!==''))  
+    .filter(r => {                                              
+      const c0 = String(r[0]||'').trim().toLowerCase();
+      return c0!=='members' && c0!=='groups';
+    })
+    .map(r=>({
+      GroupDisplayName  : pick(r, ...GNAME),
+      GroupMail         : pick(r, ...GMAIL),
+      UserDisplayName   : pick(r, ...UNAME),
+      UserPrincipalName : pick(r, ...UPN),
+      Title             : pick(r, ...TITLE),
+      Department        : pick(r, ...DEPT),
+      StatusRaw         : pick(r, ...STATUSCOL),
+      ActiveUsersRaw    : pick(r, ...ACTIVEUSERS),
+      BlockCredential   : pick(r, ...BLOCKCRED)
+    }));
+
+  buildFilters();
+  buildGroups();
+  rebuildSuggestionsPool();
+
+  els.exportBtn.disabled=false;
+  els.exportGroups.disabled=false;
+
+  showMembers();
+  refresh();
+  refreshGroups();
+  updateMatchNav(); // no-op (กัน errorจากการเรียกใช้เดิม)
+}
+
+/* ===== Filters & stats ===== */
+function buildFilters(){
+  fillSelect(els.dept,  uniq(raw.map(x=>x.Department)).sort((a,b)=>a.localeCompare(b,'th')));
+  fillSelect(els.group, uniq(raw.map(x=>x.GroupDisplayName)).sort((a,b)=>a.localeCompare(b,'th')));
+}
+function fillSelect(sel, values){
+  const cur=sel.value||'';
+  sel.innerHTML='<option value="">ทั้งหมด</option>'+values.map(v=>`<option>${escapeHtml(v)}</option>`).join('');
+  sel.value=cur;
+}
+
+/* ===== Sample CSV ===== */
+els.sample.addEventListener('click', ()=>{
+  const rows = [
+    ['GroupDisplayName','GroupMail','UserDisplayName','UserPrincipalName','Title','Department','Active users','Status','Block credential'],
+    ['Project Team','proj@org.com','Alice A','alice@org.com','Engineer','IT','1','Active','No'],
+    ['Project Team','proj@org.com','Bob B','bob@org.com','Engineer','IT','1','Active','No'],
+    ['All Users','all@org.com','Charlie C','charlie@org.com','Manager','HR','1','','Yes']
+  ];
+  downloadCSV('template_membership.csv', rows);
+});
+function downloadCSV(name, rows){
+  const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ===== Clear filters ===== */
+els.clear.addEventListener('click', ()=>{
+  els.searchName.value=''; els.dept.value=''; els.group.value=''; els.status.value='';
+  els.searchGroupText.value=''; els.filterGroupStatus.value='';
+  els.gSearch.value=''; refresh(); refreshGroups(); updateMatchNav();
+});
+
+/* ===== Global Search + suggestions ===== */
+function rebuildSuggestionsPool(){
+  const names=raw.map(x=>x.UserDisplayName).filter(Boolean);
+  const groups=raw.map(x=>x.GroupDisplayName).filter(Boolean);
+  const depts=raw.map(x=>x.Department).filter(Boolean);
+  const uniqBy=arr=>[...new Set(arr.map(s=>s.trim()))];
+  const nameSet=new Set(uniqBy(names));
+  const groupSet=new Set(uniqBy(groups));
+  const deptSet=new Set(uniqBy(depts));
+  const merged=uniqBy([...nameSet,...groupSet,...deptSet]);
+  suggestionsPool = merged.map(t=>{
+    let type = nameSet.has(t) ? 'Name' : groupSet.has(t) ? 'Group' : 'Dept';
+    return { text:t, type };
+  }).sort((a,b)=>a.text.localeCompare(b.text,'th'));
+}
+
+(function attachSuggestions(){
+  const input=els.gSearch, box=els.gSuggest, clearBtn=els.clearSearch;
+  
+  function esc(s){ return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])); }
+  function hilite(str,q){
+    if(!q) return esc(str);
+    const re=new RegExp('(' + q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\$&') + ')','ig');
+    return esc(str).replace(re,'<span class="hl">$1</span>');
+  }
+  function render(list,q,curIndex){
+    box.innerHTML=list.map((o,i)=>`
+      <div class="suggestion-item" role="option" aria-selected="${i===curIndex}">
+        <div class="sug-main">${hilite(o.text,q)}</div>
+        <span class="sug-badge">${o.type}</span>
+      </div>`).join('');
+    box.style.display=list.length?'block':'none';
+    input.parentElement.setAttribute('aria-expanded', list.length?'true':'false');
+  }
+  function applySuggestion(text){
+    if(suggestionsPool.some(p=>p.type==='Dept' && p.text===text)) els.dept.value = text;
+    else if(suggestionsPool.some(p=>p.type==='Group' && p.text===text)) els.group.value = text;
+    else els.searchName.value = text;
+    refresh(); refreshGroups();
+    box.style.display='none'; input.parentElement.setAttribute('aria-expanded','false');
+  }
+
+  let curIndex=-1, list=[];
+  input.addEventListener('focus', ()=>{
+    const q = input.value.trim();
+    if(!q && suggestionsPool.length){
+      list = suggestionsPool.slice(0,10);
+      curIndex=-1; render(list,q,curIndex);
+    }
+  });
+
+  input.addEventListener('input', ()=>{
+    const q=input.value.trim();
+    clearBtn.style.display=q?'block':'none';
+    refresh(); refreshGroups();
+
+    if(q){
+      list = suggestionsPool
+        .filter(o=>o.text.toLowerCase().includes(q.toLowerCase()))
+        .sort((a,b)=> a.text.localeCompare(b.text,'th'))
+        .slice(0,20);
+    }else{
+      list = suggestionsPool.slice(0,10);
+    }
+    curIndex=-1; render(list,q,curIndex);
+  });
+
+  input.addEventListener('keydown', (e)=>{
+    const m=list.length;
+    if(e.key==='Enter'){
+      if(m>0){ e.preventDefault(); applySuggestion(list[curIndex>=0?curIndex:0].text); }
+      return;
+    }
+    if(!m) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); curIndex=(curIndex+1)%m; render(list,input.value.trim(),curIndex); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); curIndex=(curIndex-1+m)%m; render(list,input.value.trim(),curIndex); }
+    else if(e.key==='Escape'){ box.style.display='none'; input.parentElement.setAttribute('aria-expanded','false'); }
+  });
+  box.addEventListener('click', (e)=>{
+    const it=e.target.closest('.suggestion-item'); if(!it) return;
+    const idx=Array.from(box.children).indexOf(it);
+    if(idx>-1) applySuggestion(list[idx].text);
+  });
+  clearBtn.addEventListener('click', ()=>{
+  // ล้างช่องค้นหาหลัก
+  input.value = '';
+  // ล้างช่อง "ค้นหาชื่อพนักงาน" ด้วย
+  if (els.searchName) els.searchName.value = '';
+
+  // (ถ้าต้องการล้างตัวกรองอื่น ๆ ด้วย ให้ปลดคอมเมนต์ 3 บรรทัดล่าง)
+  // if (els.dept)   els.dept.value   = '';
+  // if (els.group)  els.group.value  = '';
+  // if (els.status) els.status.value = '';
+
+  clearBtn.style.display = 'none';
+  box.style.display = 'none';
+  input.parentElement.setAttribute('aria-expanded','false');
+
+  refresh();
+  refreshGroups();
+});
+
+  document.addEventListener('click', e=>{
+    if(!input.parentElement.contains(e.target)){ box.style.display='none'; input.parentElement.setAttribute('aria-expanded','false'); }
+  });
+})();
+
+/* ===== Members view ===== */
+['input','change'].forEach(ev=>{
+  els.searchName.addEventListener(ev, ()=>{ refresh(); });
+  els.dept.addEventListener(ev,       ()=>{ refresh(); });
+  els.group.addEventListener(ev,      ()=>{ refresh(); });
+  els.status.addEventListener(ev,     ()=>{ refresh(); });
+});
+function matchGlobal(row, q){
+  if(!q) return true;
+  const hay = [
+    row.GroupDisplayName, row.GroupMail, row.UserDisplayName,
+    row.UserPrincipalName, row.Title, row.Department,
+    String(row.ActiveUsersRaw ?? ''), row.BlockCredential
+  ].map(v => String(v || '').toLowerCase()).join(' ');
+  return hay.includes(q.toLowerCase());
+}
+function refresh(){
+  const kwName=els.searchName.value.trim().toLowerCase();
+  const dep=els.dept.value, grp=els.group.value, st=els.status.value;
+  const kwGlobal=els.gSearch.value.trim();
+
+  filtered = raw.filter(x=>{
+    if(kwName && !String(x.UserDisplayName).toLowerCase().includes(kwName)) return false;
+    if(dep && x.Department!==dep) return false;
+    if(grp && x.GroupDisplayName!==grp) return false;
+    if(st==='Active' && !isActiveRow(x)) return false;
+    if(st==='Inactive' && isActiveRow(x)) return false;
+    if(!matchGlobal(x, kwGlobal)) return false;
+    // ✅ ใหม่: Allowed / Blocked
+    if (st === 'Allowed' && credStatus(x.BlockCredential) !== 'Allowed') return false;
+    if (st === 'Blocked' && credStatus(x.BlockCredential) !== 'Blocked') return false;
+    return true;
+  });
+
+  const total=filtered.length, act=filtered.filter(isActiveRow).length, inact=total-act, groups=uniq(filtered.map(x=>x.GroupDisplayName)).length;
+  els.statTotal.textContent=`ทั้งหมด: ${total}`; els.statActive.textContent=`Active: ${act}`;
+  els.statInactive.textContent=`Inactive: ${inact}`; els.statGroups.textContent=`จำนวนกลุ่ม: ${groups}`;
+
+  const qGlobal = els.gSearch.value.trim();
+  els.tbMembersBody.innerHTML = filtered.map(r => `
+    <tr>
+      <td>${highlightText(r.GroupDisplayName,  qGlobal)}</td>
+      <td>${highlightText(r.GroupMail,         qGlobal)}</td>
+      <td>${highlightText(r.UserDisplayName,   qGlobal)}</td>
+      <td>${highlightText(r.UserPrincipalName, qGlobal)}</td>
+      <td>${highlightText(r.Title,             qGlobal)}</td>
+      <td>${highlightText(r.Department,        qGlobal)}</td>
+      <td>${highlightText(String(r.ActiveUsersRaw ?? '').trim() || '—', qGlobal)}</td>
+      <td>${renderBlock(r.BlockCredential, qGlobal)}</td>
+    </tr>
+  `).join('');
+
+  const isMembersActive = els.tblMembers.style.display !== 'none';
+  document.querySelector('.table-hint').textContent = filtered.length ? 'ผลลัพธ์การค้นหา' : 'ตารางจะแสดงหลังอัปโหลดไฟล์ CSV/Excel';
+  els.membersTitle.style.display = isMembersActive && filtered.length ? 'block' : 'none';
+}
+
+els.exportBtn.addEventListener('click', ()=>{
+  if(!filtered.length) return alert('ไม่มีข้อมูลให้ส่งออก');
+  const head=['GroupDisplayName','GroupMail','UserDisplayName','UserPrincipalName','Title','Department','Active users','Block credential'];
+  const rows=[head, ...filtered.map(r=>[
+    r.GroupDisplayName??'',
+    r.GroupMail??'',
+    r.UserDisplayName??'',
+    r.UserPrincipalName??'',
+    r.Title??'',
+    r.Department??'',
+    String(r.ActiveUsersRaw??'').trim(),
+    r.BlockCredential??''
+  ])];
+  downloadCSV('filtered_membership.csv', rows);
+});
+
+/* ===== Groups view ===== */
+function canonicalStatus(s){
+  const t=String(s||'').trim(); if(!t) return '';
+  const n=t.toLowerCase();
+  if(n.includes('former employee')) return 'Groups with Former Employees';
+  if(n.includes('pending')) return 'pending inquiry';
+  if(n==='no user' || n.includes('no user')) return 'NO User';
+  return t;
+}
+function buildGroups(){
+  const map=new Map();
+  for(const r of raw){
+    const gname=r.GroupDisplayName || '(ไม่มีชื่อกลุ่ม)';
+    if(!map.has(gname)){
+      map.set(gname,{GroupDisplayName:gname,GroupMail:'',statusCounts:{},activeUsersNumeric:null,users:new Set()});
+    }
+    const o=map.get(gname);
+    if(r.GroupMail && !o.GroupMail) o.GroupMail=r.GroupMail;
+    const st=canonicalStatus(r.StatusRaw);
+    if(st){ o.statusCounts[st]=(o.statusCounts[st]||0)+1; }
+    const au=numFromActiveUsers(r.ActiveUsersRaw);
+    if(au!==null){ o.activeUsersNumeric=(o.activeUsersNumeric==null?au:Math.max(o.activeUsersNumeric,au)); }
+    const upn=String(r.UserPrincipalName||'').trim().toLowerCase();
+    if(upn){ o.users.add(upn); }
+  }
+  groupRows = Array.from(map.values()).map(o=>{
+    let finalStatus='';
+    const ent=Object.entries(o.statusCounts).sort((a,b)=>b[1]-a[1]);
+    if(ent.length) finalStatus=ent[0][0];
+    const activeUsers=(o.activeUsersNumeric!=null ? o.activeUsersNumeric : o.users.size);
+    if(!finalStatus){ finalStatus = activeUsers>0 ? 'Active' : 'Inactive'; }
+    return { GroupName:o.GroupDisplayName, GroupMail:o.GroupMail, ActiveUsers:activeUsers, Status:finalStatus };
+  }).sort((a,b)=>a.GroupName.localeCompare(b.GroupName,'th'));
+}
+
+['input','change'].forEach(ev=>{
+  els.searchGroupText.addEventListener(ev, ()=>{ refreshGroups(); });
+  els.filterGroupStatus.addEventListener(ev, ()=>{ refreshGroups(); });
+});
+function getFilteredGroups(){
+  const q=(els.searchGroupText.value||'').trim().toLowerCase();
+  const st=els.filterGroupStatus.value;
+  const kw=(els.gSearch.value||'').trim().toLowerCase();
+  return groupRows.filter(g=>{
+    if(q && !(g.GroupName||'').toLowerCase().includes(q)) return false;
+    if(st && g.Status !== st) return false;
+    if(kw && !( (g.GroupName||'') + ' ' + (g.GroupMail||'') + ' ' + (g.Status||'') ).toLowerCase().includes(kw)) return false;
+    return true;
+  });
+}
+function refreshGroups(){
+  const qGlobal=els.gSearch.value.trim();
+  const data=getFilteredGroups();
+  els.tbGroupsBody.innerHTML=data.map(g=>`
+    <tr>
+      <td>${highlightText(g.GroupName,  qGlobal)}</td>
+      <td>${highlightText(g.GroupMail,  qGlobal)}</td>
+      <td>${highlightText(g.ActiveUsers, qGlobal)}</td>
+      <td>${highlightText(g.Status,     qGlobal)}</td>
+    </tr>
+  `).join('');
+  const isGroupsActive = els.tblGroups.style.display !== 'none';
+  els.groupsTitle.style.display = isGroupsActive && data.length ? 'block' : 'none';
+}
+
+els.exportGroups.addEventListener('click', ()=>{
+  const data=getFilteredGroups();
+  if(!data.length) return alert('ไม่มีข้อมูลกลุ่ม');
+  const head=['Group name','Group primary email','Active users','Status'];
+  const rows=[head, ...data.map(g=>[g.GroupName||'', g.GroupMail||'', g.ActiveUsers??'', g.Status||''])];
+  downloadCSV('groups_summary.csv', rows);
+});
+
+/* ===== Tabs ===== */
+els.tabMembers.addEventListener('click', ()=>{ showMembers(); });
+els.tabGroups .addEventListener('click', ()=>{ showGroups();  });
+function showMembers(){
+  els.tabMembers.classList.add('active'); els.tabGroups.classList.remove('active');
+  els.tblMembers.style.display=''; els.tblGroups.style.display='none';
+  els.membersTitle.style.display='none'; els.groupsTitle.style.display='none';
+  document.querySelector('.table-hint').textContent='ตารางจะแสดงหลังอัปโหลดไฟล์ CSV/Excel';
+  els.exportBtn.style.display=''; els.exportGroups.style.display='none';
+  document.getElementById('memberFilters').style.display=''; document.getElementById('groupFilters').style.display='none';
+  refresh();
+}
+function showGroups(){
+  els.tabGroups.classList.add('active'); els.tabMembers.classList.remove('active');
+  els.tblMembers.style.display='none'; els.tblGroups.style.display='';
+  els.membersTitle.style.display='none'; els.groupsTitle.style.display='none';
+  document.querySelector('.table-hint').textContent='มุมมองกลุ่ม: รวมตามชื่อกลุ่ม';
+  els.exportBtn.style.display='none'; els.exportGroups.style.display='';
+  document.getElementById('memberFilters').style.display='none'; document.getElementById('groupFilters').style.display='';
+  if(!groupRows.length) buildGroups();
+  refreshGroups();
+}
+
+/* ===== Back to top ===== */
+window.addEventListener('scroll', ()=>{
+  const y = document.documentElement.scrollTop || document.body.scrollTop;
+  els.backToTop.style.display = y>200 ? 'flex' : 'none';
+});
+els.backToTop.addEventListener('click', ()=> window.scrollTo({top:0,behavior:'smooth'}))
+/* คำนวณระยะกันชนของหัวตารางจากความสูง header จริง */
+(function fixStickyOverlap(){
+  const root   = document.documentElement;
+  const header = document.querySelector('header');
+  const wrap   = document.querySelector('.wrap');
+
+  function px(v){ return Number(String(v||'0').replace('px',''))||0; }
+
+  function apply(){
+    const h = header?.offsetHeight || 0;
+    const wrapPadTop = wrap ? px(getComputedStyle(wrap).paddingTop) : 0;
+    const fudge = 6; // กันทับตัวอักษรเล็กน้อย
+    root.style.setProperty('--sticky-top', (h + wrapPadTop + fudge) + 'px');
+  }
+
+  window.addEventListener('load', apply);
+  window.addEventListener('resize', apply);
+  if (window.ResizeObserver){
+    const ro = new ResizeObserver(apply);
+    if (header) ro.observe(header);
+  }
+})();
+
+
+/* ===== No-op for legacy calls (กัน error ถ้ามีจุดเรียกเดิม) ===== */
+function updateMatchNav(){ /* intentionally empty */ }
+// ฟังก์ชันรีเซ็ตทุกอย่างให้เหมือนหน้าแรก
+  function resetToHome(){
+    // ล้างสเตตทั้งหมด
+    window.headers = [];
+    window.raw = [];
+    window.filtered = [];
+    window.groupRows = [];
+    window.suggestionsPool = [];
+
+    // รีเซ็ตฟิลเตอร์/อินพุต
+    const els = {
+      gSearch: document.getElementById('search'),
+      searchName: document.getElementById('searchName'),
+      dept: document.getElementById('filterDept'),
+      group: document.getElementById('filterGroup'),
+      status: document.getElementById('filterStatus'),
+      searchGroupText: document.getElementById('searchGroupText'),
+      filterGroupStatus: document.getElementById('filterGroupStatus'),
+      file: document.getElementById('file'),
+      fileName: document.getElementById('fileName'),
+      tbMembersBody: document.querySelector('#tblMembers tbody'),
+      tbGroupsBody: document.querySelector('#tblGroups tbody'),
+      tblMembers: document.getElementById('tblMembers'),
+      tblGroups: document.getElementById('tblGroups'),
+      statTotal: document.getElementById('statTotal'),
+      statActive: document.getElementById('statActive'),
+      statInactive: document.getElementById('statInactive'),
+      statGroups: document.getElementById('statGroups'),
+      membersTitle: document.getElementById('titleMembers'),
+      groupsTitle: document.getElementById('titleGroups')
+    };
+
+    // ล้างค่าอินพุต
+    if (els.gSearch) els.gSearch.value = '';
+    if (els.searchName) els.searchName.value = '';
+    if (els.dept) els.dept.value = '';
+    if (els.group) els.group.value = '';
+    if (els.status) els.status.value = '';
+    if (els.searchGroupText) els.searchGroupText.value = '';
+    if (els.filterGroupStatus) els.filterGroupStatus.value = '';
+    if (els.file) els.file.value = '';
+    if (els.fileName) els.fileName.textContent = 'รองรับ CSV / XLSX';
+
+    // ล้างตาราง/ซ่อนมุมมอง
+    if (els.tbMembersBody) els.tbMembersBody.innerHTML = '';
+    if (els.tbGroupsBody) els.tbGroupsBody.innerHTML = '';
+    if (els.tblMembers) els.tblMembers.style.display = 'none';
+    if (els.tblGroups) els.tblGroups.style.display = 'none';
+    if (els.membersTitle) els.membersTitle.style.display = 'none';
+    if (els.groupsTitle) els.groupsTitle.style.display = 'none';
+    const hint = document.querySelector('.table-hint');
+    if (hint) hint.textContent = 'ตารางจะแสดงหลังอัปโหลดไฟล์ CSV/Excel';
+
+    // รีเซ็ตสถิติ
+    if (els.statTotal) els.statTotal.textContent = 'ทั้งหมด: 0';
+    if (els.statActive) els.statActive.textContent = 'Active: 0';
+    if (els.statInactive) els.statInactive.textContent = 'Inactive: 0';
+    if (els.statGroups) els.statGroups.textContent = 'จำนวนกลุ่ม: 0';
+
+    // กลับไปแท็บ Members และซ่อนตัวกรองของ Groups
+    const tabMembers = document.getElementById('tabMembers');
+    const tabGroups  = document.getElementById('tabGroups');
+    const memberFilters = document.getElementById('memberFilters');
+    const groupFilters  = document.getElementById('groupFilters');
+    if (tabMembers && tabGroups){
+      tabMembers.classList.add('active');
+      tabGroups.classList.remove('active');
+    }
+    if (memberFilters) memberFilters.style.display = '';
+    if (groupFilters)  groupFilters.style.display  = 'none';
+
+    // ปิดกล่องแนะนำ ถ้าเปิดอยู่
+    const sugg = document.getElementById('suggestions');
+    if (sugg){ sugg.style.display = 'none'; }
+    const clearBtn = document.getElementById('clearSearch');
+    if (clearBtn){ clearBtn.style.display = 'none'; }
+
+    // เลื่อนกลับบนสุด
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ผูกกับหัวเรื่อง
+  (function(){
+    const h = document.getElementById('brandHome');
+    if(!h) return;
+    h.addEventListener('click', ()=>{
+      // ถ้ามีข้อมูลอยู่แล้ว ถามยืนยันก่อน
+      if (Array.isArray(window.raw) && window.raw.length > 0){
+        if (!confirm('กลับหน้าแรก (รีเซ็ตข้อมูล/ตัวกรองทั้งหมด)?')) return;
+      }
+      resetToHome();
+    });
+  })();
+   
+    /* ===== Sticky offset follow header height (robust) ===== */
+(function fixStickyOverlap(){
+  const root   = document.documentElement;
+  const header = document.querySelector('header');
+  const wrap   = document.querySelector('.wrap');
+
+  function px(v){ return Number(String(v||'0').replace('px',''))||0; }
+
+  function apply(){
+    const h = header?.offsetHeight || 0;
+    // เผื่อระยะ padding-top ของ .wrap ด้วย เพื่อไม่ให้หัวตารางไปชนเฮดเดอร์
+    const wrapPadTop = wrap ? px(getComputedStyle(wrap).paddingTop) : 0;
+    root.style.setProperty('--sticky-top', (h + wrapPadTop) + 'px');
+  }
+
+  // อัปเดตตอนโหลด/รีไซส์
+  window.addEventListener('load', apply);
+  window.addEventListener('resize', apply);
+
+  // อัปเดตแบบ realtime เมื่อความสูง header เปลี่ยน (เช่น ปุ่มขึ้นบรรทัดใหม่)
+  if (window.ResizeObserver){
+    const ro = new ResizeObserver(apply);
+    if (header) ro.observe(header);
+  }
+})()
+const msg = t => document.getElementById('msg').textContent = t;
+
+document.getElementById('btnUpload').onclick = async () => {
+  try {
+    const f = document.getElementById('csv').files[0];
+    if (!f) return msg('❗ เลือกไฟล์ก่อน');
+
+    const fd = new FormData();
+    fd.append('file', f); // ชื่อ "file" ต้องตรงกับ PHP: $_FILES['file']
+
+    const res  = await fetch('api/upload-csv.php', { method:'POST', body: fd });
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch { data = { ok:false, message:text }; }
+
+    if (!res.ok || !data.ok) throw new Error(data.message || text);
+    msg('✅ ' + data.message);
+  } catch (e) {
+    console.error(e); msg('⛔ ' + e.message);
+  }
+};
+// เดิมน่าจะเป็น: document.querySelectorAll('.back-to-top')
+const backToTop = document.querySelector('#backToTop') || document.querySelector('.back-to-top');
+// ==== DB Upload (ขวา) ====
+const dbFile     = document.getElementById('dbFile');
+const dbFileName = document.getElementById('dbFileName');
+const dbForm     = document.getElementById('dbUploadForm');
+const btnUpload  = document.getElementById('btnUploadDb');
+
+if (dbFile) {
+  dbFile.addEventListener('change', () => {
+    const f = dbFile.files?.[0];
+    dbFileName.textContent = f ? f.name : 'เลือก CSV เพื่อนำเข้า DB';
+  });
+}
+
+if (dbForm) {
+  dbForm.addEventListener('submit', (e) => {
+    if (!dbFile.files || dbFile.files.length === 0) {
+      e.preventDefault();
+      alert('กรุณาเลือกไฟล์ CSV ก่อนอัปโหลด');
+      return;
+    }
+    // ป้องกันคลิกซ้ำระหว่างอัปโหลด
+    btnUpload.disabled = true;
+    setTimeout(()=> btnUpload.disabled = false, 2000); // เดโม: ปลดล็อกภายหลัง
+  });
+}
+
+</script>
+</body>
+</html>
